@@ -1,5 +1,5 @@
 {
-  "name": "@schickling/fps-meter",
+  "name": "@overengineering/fps-meter",
   "version": "0.1.2",
   "type": "module",
   "files": [
@@ -9,7 +9,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/schickling/fps-meter"
+    "url": "https://github.com/overengineeringstudio/fps-meter"
   },
   "exports": {
     ".": {
@@ -29,5 +29,5 @@
     "react": "^18.2.0",
     "typescript": "^5.0.4"
   },
-  "packageManager": "yarn@3.6.1"
+  "packageManager": "pnpm@9.9.0"
 }

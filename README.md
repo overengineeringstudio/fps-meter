@@ -1,4 +1,4 @@
-# fps-meter [![](https://badgen.net/npm/v/@schickling/fps-meter)](https://www.npmjs.com/package/@schickling/fps-meter)
+# fps-meter [![](https://badgen.net/npm/v/@overengineering/fps-meter)](https://www.npmjs.com/package/@overengineering/fps-meter)
 
 Fast and simple FPS meter for React. Renders to a canvas element and uses requestAnimationFrame to update the FPS counter.
 
@@ -9,14 +9,14 @@ Fast and simple FPS meter for React. Renders to a canvas element and uses reques
 ### Install
 
 ```sh
-yarn add @schickling/fps-meter
+pnpm add @overengineering/fps-meter
 ```
 
 ### Usage
 
 ```tsx
 import React from 'react'
-import { FPSMeter } from '@schickling/fps-meter'
+import { FPSMeter } from '@overengineering/fps-meter'
 
 export const MyApp: React.FC = () => {
   return (
