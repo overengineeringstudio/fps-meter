@@ -7,3 +7,7 @@ node_modules
 !/.yarn/patches
 !/.yarn/plugins
 !/.yarn/sdks
+
+storybook-static
+
+tmp

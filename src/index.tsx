@@ -2,27 +2,61 @@ import React from 'react'
 
 const PR = Math.round(window.devicePixelRatio || 1)
 
-const FRAME_BAR_WIDTH = 2
+const supportedFps = [60, 120, 144, 160, 240] as const
+
+const getFrameBarWidth = (fps: number): number => {
+  if (fps <= 60) return 2
+  if (fps <= 144) return 1
+  return 0.5
+}
 
 export type FPSMeterProps = {
   width?: number
   height?: number
-  systemFps?: number
+  initialSystemFps?: number
   className?: string
 }
 
-const FRAME_HIT = 1
-const FRAME_MISS = 0
-const FRAME_UNINITIALIZED = -1
+const FRAME_HIT = Symbol('FRAME_HIT')
+const FRAME_MISS = Symbol('FRAME_MISS')
+const FRAME_UNINITIALIZED = Symbol('FRAME_UNINITIALIZED')
+
+type FrameValue = typeof FRAME_HIT | typeof FRAME_MISS | typeof FRAME_UNINITIALIZED
 
 // TODO handle frames differently if browser went to background
-export const FPSMeter: React.FC<FPSMeterProps> = ({ width = 120, height = 30, systemFps = 60, className }) => {
+export const FPSMeter: React.FC<FPSMeterProps> = ({ width = 120, height = 30, initialSystemFps = 60, className }) => {
+  const [systemFps, setSystemFps] = React.useState<number>(initialSystemFps)
+
+  const frameBarWidth = React.useMemo(() => getFrameBarWidth(systemFps), [systemFps])
   const adjustedWidth = Math.round(width * PR)
   const adjustedHeight = Math.round(height * PR)
+  const numberOfVisibleFrames = React.useMemo(() => Math.floor(adjustedWidth / frameBarWidth), [adjustedWidth, frameBarWidth])
 
-  const numberOfVisibleFrames = Math.floor(adjustedWidth / FRAME_BAR_WIDTH)
+  // Frame duration tracking for FPS detection
+  const last500FrameDurations = React.useMemo(() => Array.from<number>({ length: 500 }).fill(0), [])
 
-  const resolutionInMs = 1000 / systemFps!
+  const readjustSystemFps = React.useCallback(() => {
+    const nonZero = last500FrameDurations.filter((_) => _ > 0).sort()
+    if (nonZero.length < 10) return
+
+    const medianIndex = Math.floor(nonZero.length / 2)
+    const tenFramesAroundMedian = nonZero.slice(medianIndex - 5, medianIndex + 5)
+    const sumOfTenFramesAroundMedian = tenFramesAroundMedian.reduce((acc, _) => acc + _, 0)
+    const newSystemFps = Math.round(10_000 / sumOfTenFramesAroundMedian)
+
+    const closestFps = supportedFps.find((fps) => Math.abs(newSystemFps - fps) < 10)
+
+    if (closestFps === undefined) {
+      console.warn(`Unsupported system FPS ${newSystemFps}`)
+      return
+    }
+
+    if (systemFps !== closestFps) {
+      setSystemFps(closestFps)
+    }
+  }, [last500FrameDurations, systemFps])
+
+  const resolutionInMs = 1000 / systemFps
 
   // NOTE larger values can result in more items taken from array than it has and makes stuff go boom
   const numberOfSecondsForAverageFps = 2
@@ -51,29 +85,30 @@ export const FPSMeter: React.FC<FPSMeterProps> = ({ width = 120, height = 30, sy
       }
 
       // eslint-disable-next-line unicorn/no-new-array
-      const frames: number[] = new Array(numberOfVisibleFrames).fill(FRAME_UNINITIALIZED)
+      const frames: FrameValue[] = new Array(numberOfVisibleFrames).fill(FRAME_UNINITIALIZED)
 
       const ctx = canvas.getContext('2d')!
 
-      const draw = () => {
+      const draw = (frameNumber: number) => {
         ctx.clearRect(0, 0, adjustedWidth, adjustedHeight)
 
         for (let i = 0; i < numberOfVisibleFrames; i++) {
           const frameHit = frames[i]!
           if (frameHit === FRAME_UNINITIALIZED) continue
 
-          const x = i * FRAME_BAR_WIDTH
+          const x = i * frameBarWidth
 
-          ctx.fillStyle = frameHit > 0 ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 0, 0, 1)'
-          ctx.fillRect(x, adjustedHeight, FRAME_BAR_WIDTH, -adjustedHeight)
+          ctx.fillStyle = frameHit === FRAME_HIT ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 0, 0, 1)'
+          ctx.fillRect(x, adjustedHeight, frameBarWidth, -adjustedHeight)
         }
 
+        // Rendering average FPS value text
         let frameCount = 0
         let numberOfInitializedFrames = 0
         for (let i = 0; i < numberOfFramesForAverageFps; i++) {
           const frameHit = frames.at(-i - 1)!
           if (frameHit !== FRAME_UNINITIALIZED) {
-            frameCount += frameHit
+            frameCount += frameHit === FRAME_HIT ? 1 : 0
             numberOfInitializedFrames++
           }
         }
@@ -87,15 +122,16 @@ export const FPSMeter: React.FC<FPSMeterProps> = ({ width = 120, height = 30, sy
         }
       }
 
-      let previousFrameCounter = 0
+      let previousFrameNumber = 0
+      let previousFrameTime = 0
 
       const loop = () => {
         animationFrameRef.current = window.requestAnimationFrame((now) => {
           loop()
 
-          const frameCounter = Math.floor(now / resolutionInMs)
+          const frameNumber = Math.floor(now / resolutionInMs)
 
-          const numberOfSkippedFrames = frameCounter - previousFrameCounter - 1
+          const numberOfSkippedFrames = frameNumber - previousFrameNumber - 1
 
           // Checking for skipped frames
           for (let i = 0; i < numberOfSkippedFrames; i++) {
@@ -106,15 +142,24 @@ export const FPSMeter: React.FC<FPSMeterProps> = ({ width = 120, height = 30, sy
           frames.shift()!
           frames.push(FRAME_HIT)
 
-          previousFrameCounter = frameCounter
+          previousFrameNumber = frameNumber
 
-          draw()
+          const frameDuration = now - previousFrameTime
+          previousFrameTime = now
+          last500FrameDurations.shift()
+          last500FrameDurations.push(frameDuration)
+
+          if (frameNumber % 100 === 0) {
+            readjustSystemFps()
+          }
+
+          draw(frameNumber)
         })
       }
 
       loop()
     },
-    [adjustedHeight, adjustedWidth, numberOfVisibleFrames, numberOfFramesForAverageFps, resolutionInMs, systemFps],
+    [adjustedHeight, adjustedWidth, numberOfVisibleFrames, numberOfFramesForAverageFps, resolutionInMs, frameBarWidth, last500FrameDurations, readjustSystemFps],
   )
 
   return (
