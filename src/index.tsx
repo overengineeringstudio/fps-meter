@@ -92,13 +92,23 @@ export const FPSMeter: React.FC<FPSMeterProps> = ({ width = 120, height = 30, in
       const draw = (frameNumber: number) => {
         ctx.clearRect(0, 0, adjustedWidth, adjustedHeight)
 
+        // Calculate chunk width for alternating pattern
+        const chunkWidth = (1 / frameBarWidth) * 8
+
         for (let i = 0; i < numberOfVisibleFrames; i++) {
           const frameHit = frames[i]!
           if (frameHit === FRAME_UNINITIALIZED) continue
 
           const x = i * frameBarWidth
 
-          ctx.fillStyle = frameHit === FRAME_HIT ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 0, 0, 1)'
+          // Alternating colors for visual feedback that rendering isn't blocked
+          const isEvenChunk = (frameNumber + i) % (chunkWidth * 2) < chunkWidth
+          ctx.fillStyle =
+            frameHit === FRAME_MISS
+              ? 'rgba(255, 0, 0, 1)' // red
+              : isEvenChunk
+                ? 'rgba(255, 255, 255, 0.37)' // slightly more transparent
+                : 'rgba(255, 255, 255, 0.4)'  // slightly less transparent
           ctx.fillRect(x, adjustedHeight, frameBarWidth, -adjustedHeight)
         }
 
