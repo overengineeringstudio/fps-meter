@@ -19,15 +19,23 @@
   },
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
+    "@storybook/react": "^9.0.16",
+    "@storybook/react-vite": "^9.0.16",
     "@types/react": "^18.2.6",
-    "react": "^18.2.0",
-    "typescript": "^5.0.4"
+    "@vitejs/plugin-react": "^4.6.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "storybook": "^9.0.16",
+    "typescript": "^5.0.4",
+    "vite": "^7.0.4"
   },
   "packageManager": "pnpm@9.9.0"
 }
