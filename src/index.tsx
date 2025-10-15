@@ -1,6 +1,17 @@
 import React from 'react'
 
-const PR = Math.round(window.devicePixelRatio || 1)
+const getDevicePixelRatio = (): number => {
+  if (typeof window === 'undefined') {
+    return 1
+  }
+
+  const ratio = window.devicePixelRatio ?? 1
+  if (Number.isFinite(ratio)) {
+    return Math.round(ratio)
+  }
+
+  return 1
+}
 
 const supportedFps = [60, 120, 144, 160, 240] as const
 
@@ -28,8 +39,9 @@ export const FPSMeter: React.FC<FPSMeterProps> = ({ width = 120, height = 30, in
   const [systemFps, setSystemFps] = React.useState<number>(initialSystemFps)
 
   const frameBarWidth = React.useMemo(() => getFrameBarWidth(systemFps), [systemFps])
-  const adjustedWidth = Math.round(width * PR)
-  const adjustedHeight = Math.round(height * PR)
+  const pixelRatio = React.useMemo(() => getDevicePixelRatio(), [])
+  const adjustedWidth = Math.round(width * pixelRatio)
+  const adjustedHeight = Math.round(height * pixelRatio)
   const numberOfVisibleFrames = React.useMemo(() => Math.floor(adjustedWidth / frameBarWidth), [adjustedWidth, frameBarWidth])
 
   // Frame duration tracking for FPS detection
@@ -72,11 +84,12 @@ export const FPSMeter: React.FC<FPSMeterProps> = ({ width = 120, height = 30, in
 
   const canvasRef = React.useCallback(
     (canvas: HTMLCanvasElement | null) => {
-      if (animationFrameRef.current !== undefined) {
+      if (animationFrameRef.current !== undefined && typeof window !== 'undefined') {
         window.cancelAnimationFrame(animationFrameRef.current)
       }
 
       if (canvas === null) return
+      if (typeof window === 'undefined') return
 
       if (numberOfFramesForAverageFps > numberOfVisibleFrames) {
         throw new Error(
@@ -124,11 +137,11 @@ export const FPSMeter: React.FC<FPSMeterProps> = ({ width = 120, height = 30, in
         }
         if (numberOfInitializedFrames >= numberOfFramesForAverageFps) {
           ctx.fillStyle = 'white'
-          const fontSize = PR * 10
+          const fontSize = pixelRatio * 10
           ctx.font = `${fontSize}px monospace`
 
           const averageFps = Math.round((systemFps * frameCount) / numberOfInitializedFrames)
-          ctx.fillText(`${averageFps} FPS`, 2 * PR, adjustedHeight - 3 * PR)
+          ctx.fillText(`${averageFps} FPS`, 2 * pixelRatio, adjustedHeight - 3 * pixelRatio)
         }
       }
 
@@ -169,7 +182,7 @@ export const FPSMeter: React.FC<FPSMeterProps> = ({ width = 120, height = 30, in
 
       loop()
     },
-    [adjustedHeight, adjustedWidth, numberOfVisibleFrames, numberOfFramesForAverageFps, resolutionInMs, frameBarWidth, last500FrameDurations, readjustSystemFps],
+    [adjustedHeight, adjustedWidth, numberOfVisibleFrames, numberOfFramesForAverageFps, resolutionInMs, frameBarWidth, last500FrameDurations, readjustSystemFps, pixelRatio],
   )
 
   return (
